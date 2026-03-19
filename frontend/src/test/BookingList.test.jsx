@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import BookingList from "./BookingList";
+import BookingList from "../components/BookingList";
 
 vi.mock("../contexts/AuthContext", () => ({
   useAuth: () => ({
