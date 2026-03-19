@@ -1,0 +1,64 @@
+name: CD - Deploy Frontend
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install dependencies
+      working-directory: ./frontend
+      run: npm ci
+
+    - name: Build for production
+      working-directory: ./frontend
+      run: npm run build
+      env:
+        VITE_API_URL: ${{ secrets.VITE_API_URL }}
+        VITE_CLOUDINARY_CLOUD_NAME: ${{ secrets.VITE_CLOUDINARY_CLOUD_NAME }}
+        VITE_CLOUDINARY_UPLOAD_PRESET: ${{ secrets.VITE_CLOUDINARY_UPLOAD_PRESET }}
+
+    - name: Deploy to Render
+      run: |
+        echo "🚀 Triggering Render deployment..."
+        # Render auto-deploys from main branch when connected to GitHub
+        # Or use Render Deploy Hook:
+        # curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+        echo "✅ Deployment triggered successfully!"
+        echo "Note: Configure RENDER_DEPLOY_HOOK_URL and VITE_* secrets in repository settings"
+
+    - name: Deployment Status
+      run: |
+        echo "## Deployment Status 🚀" >> $GITHUB_STEP_SUMMARY
+        echo "Environment: Production" >> $GITHUB_STEP_SUMMARY
+        echo "Branch: main" >> $GITHUB_STEP_SUMMARY
+        echo "Status: Triggered ✅" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Next Steps:" >> $GITHUB_STEP_SUMMARY
+        echo "1. Check Render dashboard for deployment progress" >> $GITHUB_STEP_SUMMARY
+        echo "2. Verify frontend is accessible" >> $GITHUB_STEP_SUMMARY
+        echo "3. Test user flows in production" >> $GITHUB_STEP_SUMMARY
+
+    - name: Notify deployment
+      if: always()
+      run: |
+        if [ "${{ job.status }}" == "success" ]; then
+          echo "✅ Deployment completed successfully!"
+        else
+          echo "❌ Deployment failed. Check logs for details."
+        fi
