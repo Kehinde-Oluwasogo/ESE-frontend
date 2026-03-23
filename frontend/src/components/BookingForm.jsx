@@ -13,6 +13,8 @@ function BookingForm({ onBookingCreated }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [availableTimes, setAvailableTimes] = useState([]);
+  const [loadingTimes, setLoadingTimes] = useState(false);
 
   // Auto-populate name and email from logged-in user
   useEffect(() => {
@@ -22,6 +24,41 @@ function BookingForm({ onBookingCreated }) {
     }
   }, [user]);
 
+  // Fetch available times when date and service change
+  useEffect(() => {
+    if (bookingDate && service) {
+      setBookingTime(""); // Reset time when date/service changes
+      fetchAvailableTimes();
+    } else {
+      setAvailableTimes([]);
+      setBookingTime("");
+    }
+  }, [bookingDate, service]);
+
+  const fetchAvailableTimes = async () => {
+    setLoadingTimes(true);
+    try {
+      const token = localStorage.getItem("access_token");
+      const response = await fetch(buildApiUrl(`/bookings/available_slots/?date=${bookingDate}&service=${encodeURIComponent(service)}`), {
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableTimes(data.slots.filter(slot => slot.available));
+      } else {
+        setAvailableTimes([]);
+      }
+    } catch (error) {
+      console.error("Error fetching available times:", error);
+      setAvailableTimes([]);
+    } finally {
+      setLoadingTimes(false);
+    }
+  };
+
   const serviceOptions = [
     "Haircut",
     "Hair Coloring",
@@ -29,9 +66,8 @@ function BookingForm({ onBookingCreated }) {
     "Facial",
     "Manicure",
     "Pedicure",
-    "Spa Treatment",
-    "Consultation",
-    "Other"
+    "Spa Package",
+    "Consultation"
   ];
 
   function handleSubmit(event) {
@@ -153,14 +189,26 @@ function BookingForm({ onBookingCreated }) {
 
           <div className="form-group">
             <label htmlFor="bookingTime">Time *</label>
-            <input
-              type="time"
+            <select
               id="bookingTime"
               className="input input__lg"
               value={bookingTime}
               onChange={(e) => setBookingTime(e.target.value)}
               required
-            />
+              disabled={!bookingDate || !service || loadingTimes}
+            >
+              <option value="">
+                {loadingTimes ? "Loading available times..." : "Select a time"}
+              </option>
+              {availableTimes.map((slot) => (
+                <option key={slot.time} value={slot.time}>
+                  {slot.display_time}
+                </option>
+              ))}
+            </select>
+            {bookingDate && service && !loadingTimes && availableTimes.length === 0 && (
+              <small className="text-muted">No available times for this date and service.</small>
+            )}
           </div>
         </div>
 

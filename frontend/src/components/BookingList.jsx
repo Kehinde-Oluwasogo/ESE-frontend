@@ -132,9 +132,8 @@ function BookingList() {
     "Facial",
     "Manicure",
     "Pedicure",
-    "Spa Treatment",
-    "Consultation",
-    "Other"
+    "Spa Package",
+    "Consultation"
   ];
 
   function getStatusBadgeClass(status) {
@@ -148,18 +147,34 @@ function BookingList() {
   }
 
   function formatDate(dateString) {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
+    if (!dateString) return "N/A";
+    try {
+      const date = new Date(dateString + "T00:00:00Z");
+      if (isNaN(date.getTime())) return "Invalid Date";
+      return date.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+    } catch (e) {
+      return "Invalid Date";
+    }
   }
 
   function formatTime(timeString) {
-    return new Date(`2000-01-01T${timeString}`).toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    if (!timeString) return "N/A";
+    try {
+      const [hours, minutes] = timeString.split(":");
+      const date = new Date(2000, 0, 1, parseInt(hours), parseInt(minutes));
+      if (isNaN(date.getTime())) return "Invalid Time";
+      return date.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
+    } catch (e) {
+      return "Invalid Time";
+    }
   }
 
   const filteredBookings = bookings.filter((booking) => {
