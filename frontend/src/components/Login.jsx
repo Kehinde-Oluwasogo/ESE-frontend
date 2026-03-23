@@ -15,7 +15,7 @@ function Login({ onLogin, onSwitchToRegister, onSwitchToForgotPassword }) {
     fetch(buildApiUrl("/auth/token/"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username: username.toLowerCase(), password }),
     })
       .then((response) => {
         if (!response.ok) {
