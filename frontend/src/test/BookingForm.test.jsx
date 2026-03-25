@@ -21,13 +21,20 @@ describe("BookingForm", () => {
   it("creates a booking and calls onBookingCreated", async () => {
     const onBookingCreated = vi.fn();
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
+    const mockFetch = vi.fn().mockImplementation((url) => {
+      if (url.includes("available_slots")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ slots: [{ time: "10:30", display_time: "10:30 AM", available: true }] }),
+        });
+      }
+      return Promise.resolve({
         ok: true,
         json: async () => ({ id: 1, status: "pending" }),
-      }),
-    );
+      });
+    });
+
+    vi.stubGlobal("fetch", mockFetch);
 
     render(<BookingForm onBookingCreated={onBookingCreated} />);
 
@@ -36,13 +43,19 @@ describe("BookingForm", () => {
 
     await userEvent.selectOptions(screen.getByLabelText(/service/i), "Massage");
     await userEvent.type(screen.getByLabelText(/date/i), "2099-12-31");
-    await userEvent.type(screen.getByLabelText(/time/i), "10:30");
+    
+    // Wait for available times to load
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: "10:30 AM" })).toBeInTheDocument();
+    });
+    
+    await userEvent.selectOptions(screen.getByLabelText(/time/i), "10:30");
     await userEvent.type(screen.getByLabelText(/additional notes/i), "Please be on time.");
     await userEvent.click(screen.getByRole("button", { name: /book appointment/i }));
 
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith(
-        "/api/bookings/",
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/bookings/"),
         expect.objectContaining({
           method: "POST",
           headers: {
@@ -58,19 +71,35 @@ describe("BookingForm", () => {
   });
 
   it("shows an error when booking creation fails", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue({
+    const mockFetch = vi.fn().mockImplementation((url) => {
+      if (url.includes("available_slots")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ slots: [{ time: "10:30", display_time: "10:30 AM", available: true }] }),
+        });
+      }
+      return Promise.resolve({
         ok: false,
         json: async () => ({}),
-      }),
+      });
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      mockFetch,
     );
 
     render(<BookingForm onBookingCreated={vi.fn()} />);
 
     await userEvent.selectOptions(screen.getByLabelText(/service/i), "Massage");
     await userEvent.type(screen.getByLabelText(/date/i), "2099-12-31");
-    await userEvent.type(screen.getByLabelText(/time/i), "10:30");
+    
+    // Wait for available times to load
+    await waitFor(() => {
+      expect(screen.getByRole("option", { name: "10:30 AM" })).toBeInTheDocument();
+    });
+    
+    await userEvent.selectOptions(screen.getByLabelText(/time/i), "10:30");
     await userEvent.click(screen.getByRole("button", { name: /book appointment/i }));
 
     expect(await screen.findByText(/failed to create booking/i)).toBeInTheDocument();
