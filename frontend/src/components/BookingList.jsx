@@ -10,10 +10,21 @@ function BookingList() {
   const [filter, setFilter] = useState("all");
   const [editingBooking, setEditingBooking] = useState(null);
   const [editFormData, setEditFormData] = useState({});
+  const [availableTimesEdit, setAvailableTimesEdit] = useState([]);
+  const [loadingTimesEdit, setLoadingTimesEdit] = useState(false);
 
   useEffect(() => {
     fetchBookings();
   }, []);
+
+  // Fetch available times when editing and date/service changes
+  useEffect(() => {
+    if (editingBooking && editFormData.booking_date && editFormData.service) {
+      fetchAvailableTimesEditMode();
+    } else {
+      setAvailableTimesEdit([]);
+    }
+  }, [editFormData.booking_date, editFormData.service, editingBooking]);
 
   function fetchBookings() {
     setLoading(true);
@@ -80,6 +91,28 @@ function BookingList() {
       });
   }
 
+  function fetchAvailableTimesEditMode() {
+    setLoadingTimesEdit(true);
+    const token = localStorage.getItem("access_token");
+    
+    fetch(buildApiUrl(`/bookings/available_slots/?date=${editFormData.booking_date}&service=${encodeURIComponent(editFormData.service)}`), {
+      headers: {
+        "Authorization": `Bearer ${token}`
+      }
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        setAvailableTimesEdit(data.slots.filter(slot => slot.available));
+      })
+      .catch((error) => {
+        console.error("Error fetching available times:", error);
+        setAvailableTimesEdit([]);
+      })
+      .finally(() => {
+        setLoadingTimesEdit(false);
+      });
+  }
+
   function startEditing(booking) {
     setEditingBooking(booking.id);
     setEditFormData({
@@ -95,6 +128,7 @@ function BookingList() {
   function cancelEditing() {
     setEditingBooking(null);
     setEditFormData({});
+    setAvailableTimesEdit([]);
     setError("");
   }
 
@@ -275,12 +309,24 @@ function BookingList() {
                     </div>
                     <div className="form-group">
                       <label>Time</label>
-                      <input
-                        type="time"
+                      <select
                         className="input input__lg"
                         value={editFormData.booking_time}
                         onChange={(e) => setEditFormData({...editFormData, booking_time: e.target.value})}
-                      />
+                        disabled={!editFormData.booking_date || !editFormData.service || loadingTimesEdit}
+                      >
+                        <option value="">
+                          {loadingTimesEdit ? "Loading available times..." : "Select a time"}
+                        </option>
+                        {availableTimesEdit.map((slot) => (
+                          <option key={slot.time} value={slot.time}>
+                            {slot.display_time}
+                          </option>
+                        ))}
+                      </select>
+                      {editFormData.booking_date && editFormData.service && !loadingTimesEdit && availableTimesEdit.length === 0 && (
+                        <small className="text-muted">No available times for this date and service.</small>
+                      )}
                     </div>
                   </div>
                   <div className="form-group">
